@@ -45,10 +45,19 @@ describe('dados_sensiveis', () => {
     await db.saveDado({ hash: 'H1', asset: 'A2', ct: 'c2', iv: 'i2', shares: [] });
     expect((await db.getDado('H1'))?.asset).toBe('A2');
     expect((await db.getDado('H1'))?.shares).toEqual([]);
+    expect((await db.getDado('H1'))?.shredded_em).toBeNull();
     expect(await db.getDado('NAO')).toBeNull();
+
+    // crypto-shredding = soft delete: destrói o dado, PRESERVA o registro (trilha de auditoria).
     expect(await db.shredDado('H1')).toBe(true);
-    expect(await db.getDado('H1')).toBeNull();
-    expect(await db.shredDado('H1')).toBe(false);
+    const morto = await db.getDado('H1');
+    expect(morto).not.toBeNull();
+    expect(morto?.ct).toBe('');
+    expect(morto?.shares).toEqual([]);
+    expect(morto?.shredded_em).toBeTypeOf('number');
+    expect(await db.listDados()).toHaveLength(1); // continua listado (auditoria)
+    expect((await db.listDados())[0]?.shredded_em).toBeTypeOf('number');
+    expect(await db.shredDado('H1')).toBe(false); // idempotente: já destruído
   });
 });
 

@@ -91,7 +91,10 @@ describe('/api/dados', () => {
     expect((await dados.DELETE(req('', 'DELETE'))).status).toBe(400); // sem hash
     const shr = await dados.DELETE(req('?hash=H', 'DELETE'));
     expect(((await shr.json()) as { shredded: boolean }).shredded).toBe(true);
-    expect((await dados.GET(req('?hash=H'))).status).toBe(404);
+    // soft delete: o registro permanece (auditoria), agora marcado como destruído
+    const depois = await dados.GET(req('?hash=H'));
+    expect(depois.status).toBe(200);
+    expect(((await depois.json()) as { shredded_em: number }).shredded_em).toBeTypeOf('number');
   });
 });
 

@@ -22,6 +22,8 @@ export interface DadoSensivel {
   /** 5 shares Shamir (hex) da chave AES — em produção ficariam com 5 custodiantes; aqui juntas p/ a demo do cofre. */
   shares: string[];
   criado_em: number;
+  /** Crypto-shredding: quando a chave/ciphertext foi destruída (soft delete). NULL = ativo. */
+  shredded_em: number | null;
 }
 
 export interface Veiculo {
@@ -48,15 +50,20 @@ function db(): Promise<Client> {
       );
       CREATE TABLE IF NOT EXISTS dados_sensiveis (
         hash TEXT PRIMARY KEY, asset TEXT NOT NULL, ct TEXT NOT NULL, iv TEXT NOT NULL,
-        shares TEXT NOT NULL DEFAULT '[]', criado_em INTEGER NOT NULL
+        shares TEXT NOT NULL DEFAULT '[]', criado_em INTEGER NOT NULL, shredded_em INTEGER
       );
       CREATE TABLE IF NOT EXISTS veiculos (
         vin_commit TEXT PRIMARY KEY, asset TEXT NOT NULL, nome TEXT NOT NULL DEFAULT '', criado_em INTEGER NOT NULL
       );
     `);
-    // migração: adiciona a coluna `shares` em bancos criados antes dela.
+    // migração: adiciona colunas em bancos criados antes delas.
     try {
       await c.execute("ALTER TABLE dados_sensiveis ADD COLUMN shares TEXT NOT NULL DEFAULT '[]'");
+    } catch {
+      /* coluna já existe */
+    }
+    try {
+      await c.execute('ALTER TABLE dados_sensiveis ADD COLUMN shredded_em INTEGER');
     } catch {
       /* coluna já existe */
     }
@@ -95,7 +102,7 @@ export async function upsertEmissor(e: Emissor): Promise<void> {
 
 // ---- dados sensíveis (ciphertext + shares off-chain) -----------------------
 
-export async function saveDado(d: Omit<DadoSensivel, 'criado_em'>): Promise<void> {
+export async function saveDado(d: Omit<DadoSensivel, 'criado_em' | 'shredded_em'>): Promise<void> {
   await (await db()).execute({
     sql: `INSERT INTO dados_sensiveis (hash, asset, ct, iv, shares, criado_em) VALUES (?, ?, ?, ?, ?, ?)
           ON CONFLICT(hash) DO UPDATE SET asset = excluded.asset, ct = excluded.ct, iv = excluded.iv, shares = excluded.shares`,
@@ -104,21 +111,29 @@ export async function saveDado(d: Omit<DadoSensivel, 'criado_em'>): Promise<void
 }
 
 export async function getDado(hash: string): Promise<DadoSensivel | null> {
-  const r = await (await db()).execute({ sql: 'SELECT hash, asset, ct, iv, shares, criado_em FROM dados_sensiveis WHERE hash = ?', args: [hash] });
+  const r = await (await db()).execute({ sql: 'SELECT hash, asset, ct, iv, shares, criado_em, shredded_em FROM dados_sensiveis WHERE hash = ?', args: [hash] });
   const row = r.rows[0] as unknown as (Omit<DadoSensivel, 'shares'> & { shares: string }) | undefined;
   if (!row) return null;
   return { ...row, shares: JSON.parse(row.shares) as string[] };
 }
 
-/** Lista os registros cifrados (sem o ciphertext), do mais novo p/ o mais antigo. */
-export async function listDados(): Promise<{ hash: string; asset: string; criado_em: number }[]> {
-  const r = await (await db()).execute('SELECT hash, asset, criado_em FROM dados_sensiveis ORDER BY criado_em DESC');
-  return r.rows as unknown as { hash: string; asset: string; criado_em: number }[];
+/** Lista os registros cifrados (sem o ciphertext), do mais novo p/ o mais antigo. Inclui os destruídos (trilha de auditoria). */
+export async function listDados(): Promise<{ hash: string; asset: string; criado_em: number; shredded_em: number | null }[]> {
+  const r = await (await db()).execute('SELECT hash, asset, criado_em, shredded_em FROM dados_sensiveis ORDER BY criado_em DESC');
+  return r.rows as unknown as { hash: string; asset: string; criado_em: number; shredded_em: number | null }[];
 }
 
-/** Crypto-shredding: apaga o ciphertext. Sobra o hash imutável na chain (LGPD art. 18). */
+/**
+ * Crypto-shredding (soft delete p/ auditoria): destrói a CHAVE e o ciphertext (dado irrecuperável,
+ * LGPD art. 18) mas MANTÉM o registro — hash, asset, quando foi criado e quando foi destruído.
+ * A trilha de auditoria continua (o evento existiu e foi apagado); o dado sensível não volta.
+ * Idempotente: só destrói o que ainda está ativo.
+ */
 export async function shredDado(hash: string): Promise<boolean> {
-  const r = await (await db()).execute({ sql: 'DELETE FROM dados_sensiveis WHERE hash = ?', args: [hash] });
+  const r = await (await db()).execute({
+    sql: "UPDATE dados_sensiveis SET ct = '', iv = '', shares = '[]', shredded_em = ? WHERE hash = ? AND shredded_em IS NULL",
+    args: [Date.now(), hash],
+  });
   return r.rowsAffected > 0;
 }
 

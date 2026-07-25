@@ -17,6 +17,7 @@ interface DadoRow {
   hash: string;
   asset: string;
   criado_em: number;
+  shredded_em: number | null;
 }
 interface DadoFull extends DadoRow {
   ct: string;
@@ -107,12 +108,13 @@ export default function CofrePage() {
 
   async function destruir() {
     if (!sel) return;
-    if (!confirm('Destruir a chave deste registro? É IRREVERSÍVEL — o dado cifrado some para sempre (sobra só o hash na chain).')) return;
-    await fetch(`/api/dados?hash=${sel.hash}`, { method: 'DELETE' });
-    setStatus('🔥 Ciphertext e shares destruídos. Sobra o hash imutável na chain — que não reidentifica ninguém (LGPD art. 18).');
-    setSel(null);
+    if (!confirm('Destruir a chave deste registro? É IRREVERSÍVEL — o dado sensível some para sempre. O registro fica na trilha de auditoria (hash, veículo, data).')) return;
+    const hash = sel.hash;
+    await fetch(`/api/dados?hash=${hash}`, { method: 'DELETE' });
     setAberto(null);
     carregar();
+    await escolher(hash); // re-seleciona → mostra o tombstone de auditoria (registro preservado)
+    setStatus('🔥 Chave e ciphertext destruídos — dado irrecuperável (LGPD art. 18). O registro permanece para auditoria.');
   }
 
   const campos = aberto ? aberto.texto.split('|') : [];
@@ -172,7 +174,14 @@ export default function CofrePage() {
                     : 'border-[var(--sc-border)] bg-[var(--sc-card)] hover:border-[var(--sc-primary)]'
                 }`}
               >
-                <span className="block font-mono text-xs text-[var(--sc-text)]">{d.hash.slice(0, 18)}…</span>
+                <span className="flex items-center gap-2 font-mono text-xs text-[var(--sc-text)]">
+                  {d.hash.slice(0, 18)}…
+                  {d.shredded_em && (
+                    <span className="rounded bg-[var(--sc-alerta)]/15 px-1.5 py-0.5 font-sans text-[10px] font-medium text-[var(--sc-alerta)]">
+                      🔥 destruído
+                    </span>
+                  )}
+                </span>
                 <span className="block text-xs text-[var(--sc-muted)]">{data(d.criado_em)}</span>
               </button>
             ))}
@@ -181,8 +190,35 @@ export default function CofrePage() {
         </section>
       )}
 
+      {/* passo 3 (destruído) — tombstone de auditoria: dado irrecuperável, registro preservado */}
+      {sel && sel.shredded_em && (
+        <section className="mt-6">
+          <Card className="border-[var(--sc-alerta)]/40 p-5">
+            <h2 className="text-sm font-medium text-[var(--sc-alerta)]">🔥 Dado destruído (crypto-shredding)</h2>
+            <p className="mt-2 text-sm text-[var(--sc-muted)]">
+              A chave e o ciphertext foram destruídos — o dado sensível é <strong>irrecuperável</strong> (LGPD art. 18).
+              O registro permanece para <strong>auditoria</strong>: prova que o evento existiu e quando foi apagado.
+            </p>
+            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+              <div className="sm:col-span-3">
+                <dt className="text-[var(--sc-muted)]">Hash (imutável na chain)</dt>
+                <dd className="break-all font-mono text-xs text-[var(--sc-text)]">{sel.hash}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--sc-muted)]">Criado em</dt>
+                <dd className="text-[var(--sc-text)]">{data(sel.criado_em)}</dd>
+              </div>
+              <div>
+                <dt className="text-[var(--sc-muted)]">Destruído em</dt>
+                <dd className="text-[var(--sc-text)]">{data(sel.shredded_em)}</dd>
+              </div>
+            </dl>
+          </Card>
+        </section>
+      )}
+
       {/* passo 3 — abrir o hash (ler o dado) */}
-      {sel && (
+      {sel && !sel.shredded_em && (
         <>
           <section className="mt-6">
             <h2 className="text-sm font-medium text-[var(--sc-muted)]">3 · As 5 shares (copie 3 quaisquer)</h2>
