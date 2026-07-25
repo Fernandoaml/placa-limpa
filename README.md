@@ -21,7 +21,9 @@ sempre**. A página de verificação marca a inconsistência em **vermelho, perm
 O dado sensível só existe **cifrado** (AES-256-GCM). A chave é dividida em 5 partes (Shamir), 3 abrem.
 No **`/cofre`** você escolhe um registro real, cola **3 shares**, reconstrói a chave e **lê o dado** — e o
 app confere que `sha256(dado) == hash` do memo on-chain. Se o titular pede exclusão (art. 18, LGPD),
-**destrói-se a chave** → o dado morre, mesmo com o hash imutável na chain, que não reidentifica ninguém.
+**destrói-se a chave** (soft delete): o ciphertext + as shares são zerados e o dado fica **irrecuperável**,
+mas o **registro permanece para auditoria** (prova que o evento existiu e quando foi apagado). O hash
+imutável na chain não reidentifica ninguém.
 
 ## Stack
 
@@ -30,22 +32,26 @@ app confere que `sha256(dado) == hash` do memo on-chain. Se o titular pede exclu
 - **SPL Memo** + `getSignaturesForAddress` para o log de eventos
 - **@solana/wallet-adapter** (Phantom) para assinar
 - `shamir-secret-sharing` + Web Crypto (AES-GCM)
-- **SQLite** embutido (`node:sqlite`) para o índice e o dado cifrado off-chain
+- **libSQL** (`@libsql/client`) para o índice e o dado cifrado off-chain — arquivo `file:` local + **Turso** em produção
 - **Vitest** — 100% de cobertura da lógica de negócio (lib + rotas de API)
 
-## Base local (SQLite)
+## Base off-chain (libSQL / Turso)
 
-O que **não** vai na chain fica numa base local SQLite versionada em `data/placa-limpa.db`:
+O que **não** vai na chain fica numa base **libSQL** (`@libsql/client`): arquivo local (`data/placa-limpa.db`)
+em desenvolvimento, **Turso** (libsql cloud) em produção — então a escrita **persiste** mesmo no serverless da Vercel.
 
 - **`veiculos`** — índice `vinCommit → asset` (a chain não indexa por atributo; é como a verificação acha o asset).
 - **`emissores`** — credencial off-chain do emissor (pubkey, CNPJ, escopo).
-- **`dados_sensiveis`** — o **ciphertext** + as **5 shares** Shamir de cada evento, indexado pelo **mesmo `hash`** do memo. `DELETE` = crypto-shredding.
+- **`dados_sensiveis`** — o **ciphertext** + as **5 shares** Shamir de cada evento, indexado pelo **mesmo `hash`** do memo.
 
 > A timeline dos eventos **não** vem do banco — vem sempre da chain (`getSignaturesForAddress`). O banco
 > é só índice + dado off-chain.
 >
-> ⚠️ Na Vercel o FS é read-only em runtime: o `.db` semeado é **lido**, mas escrita ao vivo não persiste.
-> Localmente (`npm run dev`) a escrita persiste normal. Para escrita em produção, migrar para **Turso** (libsql).
+> 🔒 **Crypto-shredding = soft delete:** "destruir a chave" zera o ciphertext + as shares (dado
+> **irrecuperável**, LGPD art. 18) mas **mantém o registro** (`shredded_em`) para a **trilha de auditoria**.
+>
+> Em produção (Vercel) usa **Turso** via `TURSO_DATABASE_URL` — a escrita ao vivo persiste. Sem essa env,
+> cai no arquivo `file:` local (`npm run dev`).
 
 APIs: `/api/veiculos`, `/api/emissores`, `/api/dados`, `/api/commit` (sha256(chassi+PEPPER), não expõe o VIN).
 
@@ -85,7 +91,8 @@ Cobertura atual: **100%** de statements, branches, funções e linhas.
 ## Deploy (Vercel)
 
 Import direto deste repositório (o app está na **raiz**). Variáveis: `NEXT_PUBLIC_RPC`, `VIN_PEPPER`,
-`NEXT_PUBLIC_COLLECTION` (vazio) e **`NEXT_PUBLIC_MOCK=0`**.
+`NEXT_PUBLIC_COLLECTION` (vazio) e **`NEXT_PUBLIC_MOCK=0`**. Para **escrita persistente** em produção,
+defina `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (Turso libsql cloud) — sem eles, o app cai no `.db` local.
 
 ## Endereços da devnet
 
