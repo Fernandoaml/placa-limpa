@@ -19,7 +19,7 @@ import { mplCore } from '@metaplex-foundation/mpl-core';
 import { keypairIdentity, type Umi } from '@metaplex-foundation/umi';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 import { mintVehicle, appendEvent } from '../lib/vehicle';
-import { saveVeiculo, saveDado } from '../lib/db';
+import { saveVeiculo, saveDado, resetSeedTables, seedEmissores, closeDb } from '../lib/db';
 import { sha256Hex, encrypt, randomKey, splitKey, toHex } from '../lib/crypto';
 import { KIND, SCOPE, MEMO_VERSION, type Kind, type Scope } from '../lib/types';
 
@@ -95,8 +95,13 @@ async function main() {
   console.log(`RPC: ${rpc}`);
   console.log(`Signer: ${umi.identity.publicKey}`);
 
+  // Base limpa e reprodutível: zera as tabelas e re-semeia os emissores credenciados.
+  await resetSeedTables();
+  await seedEmissores(umi.identity.publicKey.toString());
+  console.log('🧹 Base zerada + emissores semeados.');
+
   // Veículo A — histórico íntegro (km sempre sobe).
-  await semearVeiculo(umi, '9BWZZZ377VT004251', 'VW Gol 2019 (íntegro)', [
+  await semearVeiculo(umi, '9BWZZZ377VT004251', 'VW Gol 2019 — íntegro', [
     { kind: KIND.REVISAO, km: 15_000, scope: SCOPE.OFICINA, emissor: 'Oficina Central', sensivel: 'troca de óleo + filtros' },
     { kind: KIND.VISTORIA, km: 38_000, scope: SCOPE.VISTORIADOR, emissor: 'Vistoria Rápida', sensivel: 'laudo cautelar aprovado' },
     { kind: KIND.REVISAO, km: 62_000, scope: SCOPE.OFICINA, emissor: 'Oficina do Bairro', sensivel: 'correia dentada' },
@@ -104,7 +109,7 @@ async function main() {
   ]);
 
   // Veículo B — com fraude: hodômetro retrocede de 80.000 para 45.000.
-  await semearVeiculo(umi, '9BWZZZ377VT009988', 'VW Gol 2019 (fraudado)', [
+  await semearVeiculo(umi, '9BWZZZ377VT009988', 'VW Gol 2019 — fraudado', [
     { kind: KIND.REVISAO, km: 20_000, scope: SCOPE.OFICINA, emissor: 'Oficina Central', sensivel: 'revisão 20 mil' },
     { kind: KIND.REVISAO, km: 55_000, scope: SCOPE.OFICINA, emissor: 'Oficina do Bairro', sensivel: 'revisão 55 mil' },
     { kind: KIND.REVISAO, km: 80_000, scope: SCOPE.OFICINA, emissor: 'Oficina Central', sensivel: 'revisão 80 mil' },
@@ -112,6 +117,7 @@ async function main() {
   ]);
 
   console.log('\n✅ Seed concluído. Cole o asset e uma signature no formulário. Lembre: NEXT_PUBLIC_MOCK=0 no deploy final.');
+  await closeDb();
 }
 
 main().catch((e) => {

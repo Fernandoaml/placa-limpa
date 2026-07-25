@@ -93,8 +93,8 @@ Carteira montadora (mint authority): `AENk2DB1xKpi3Urs8UJgqk5BWLA25Xqruz8eJMF9VF
 
 | Veículo | Asset | Verificar |
 |---|---|---|
-| Íntegro | [`GEEb1wEHnxoNhJrbDSKVyejPJCNXQBP59yLHgYVGBmZn`](https://solscan.io/account/GEEb1wEHnxoNhJrbDSKVyejPJCNXQBP59yLHgYVGBmZn?cluster=devnet) | [`/v/55136e…`](https://placa-limpa.vercel.app/v/55136edccd343d8c49981ae7368db66dfaa1c26b8d42399871dbf40f7ae1051b) |
-| Fraudado (⚠️ 80.000→45.000) | [`FgfrTMEKfLQni6PnVPdBCt6MDBH5LDhMppJBzLX8nT6M`](https://solscan.io/account/FgfrTMEKfLQni6PnVPdBCt6MDBH5LDhMppJBzLX8nT6M?cluster=devnet) | [`/v/b2bb24…`](https://placa-limpa.vercel.app/v/b2bb2440b6c53c6ea978db3f74ec8b4da978d6f03662e7e4761748ae6cc2be43) |
+| Íntegro | [`9xkmtrqXEqUKXRuNPU2ZhQhrVBMthR1uU4jnPvWU5Jck`](https://solscan.io/account/9xkmtrqXEqUKXRuNPU2ZhQhrVBMthR1uU4jnPvWU5Jck?cluster=devnet) | [`/v/55136e…`](https://placa-limpa.vercel.app/v/55136edccd343d8c49981ae7368db66dfaa1c26b8d42399871dbf40f7ae1051b) |
+| Fraudado (⚠️ 80.000→45.000) | [`F9sk3CE1EL52ep2drWjJuJcSKj1zffD8DCoa9QZxNDKa`](https://solscan.io/account/F9sk3CE1EL52ep2drWjJuJcSKj1zffD8DCoa9QZxNDKa?cluster=devnet) | [`/v/b2bb24…`](https://placa-limpa.vercel.app/v/b2bb2440b6c53c6ea978db3f74ec8b4da978d6f03662e7e4761748ae6cc2be43) |
 
 ## Licença
 

@@ -67,7 +67,7 @@ afterEach(() => {
   vi.resetModules();
 });
 
-const ASSET = 'GEEb1wEHnxoNhJrbDSKVyejPJCNXQBP59yLHgYVGBmZn';
+const ASSET = '9xkmtrqXEqUKXRuNPU2ZhQhrVBMthR1uU4jnPvWU5Jck';
 
 describe('listEvents (parse de memo)', () => {
   it('extrai só memos válidos, aceita prefixo "[N] {json}" e ordena por blockTime', async () => {

@@ -8,14 +8,14 @@ import { randomKey, encrypt, sha256Hex, splitKey, toHex } from '../lib/crypto';
 
 // Veículos atualmente na devnet (mintados por scripts/seed.ts sob a carteira descartável).
 const VEICULOS_ONCHAIN: [vinCommit: string, asset: string, nome: string][] = [
-  ['55136edccd343d8c49981ae7368db66dfaa1c26b8d42399871dbf40f7ae1051b', 'GEEb1wEHnxoNhJrbDSKVyejPJCNXQBP59yLHgYVGBmZn', 'VW Gol 2019 — íntegro'],
-  ['b2bb2440b6c53c6ea978db3f74ec8b4da978d6f03662e7e4761748ae6cc2be43', 'FgfrTMEKfLQni6PnVPdBCt6MDBH5LDhMppJBzLX8nT6M', 'VW Gol 2019 — fraudado'],
+  ['55136edccd343d8c49981ae7368db66dfaa1c26b8d42399871dbf40f7ae1051b', '9xkmtrqXEqUKXRuNPU2ZhQhrVBMthR1uU4jnPvWU5Jck', 'VW Gol 2019 — íntegro'],
+  ['b2bb2440b6c53c6ea978db3f74ec8b4da978d6f03662e7e4761748ae6cc2be43', 'F9sk3CE1EL52ep2drWjJuJcSKj1zffD8DCoa9QZxNDKa', 'VW Gol 2019 — fraudado'],
 ];
 
 // Eventos de cada veículo (mesma definição que scripts/seed.ts usou no mint on-chain).
 // O hash é sha256(`${sensivel}|${chassi}|${km}`) — IDÊNTICO ao que está no memo da chain.
-const ASSET_INTEGRO = 'GEEb1wEHnxoNhJrbDSKVyejPJCNXQBP59yLHgYVGBmZn';
-const ASSET_FRAUDADO = 'FgfrTMEKfLQni6PnVPdBCt6MDBH5LDhMppJBzLX8nT6M';
+const ASSET_INTEGRO = '9xkmtrqXEqUKXRuNPU2ZhQhrVBMthR1uU4jnPvWU5Jck';
+const ASSET_FRAUDADO = 'F9sk3CE1EL52ep2drWjJuJcSKj1zffD8DCoa9QZxNDKa';
 const EVENTOS: { asset: string; chassi: string; km: number; sensivel: string }[] = [
   { asset: ASSET_INTEGRO, chassi: '9BWZZZ377VT004251', km: 15_000, sensivel: 'troca de óleo + filtros' },
   { asset: ASSET_INTEGRO, chassi: '9BWZZZ377VT004251', km: 38_000, sensivel: 'laudo cautelar aprovado' },
