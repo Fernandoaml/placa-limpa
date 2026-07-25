@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/*
+ * Placa Limpa — design tokens.
+ * Golden rule: components consume ONLY var(--sc-*). No hex outside this
+ * layer, no !important. Dark is the default theme; `.light` on <html>
+ * gives full-parity light overrides.
+ */
+:root {
+  /* Paleta canônica extraída do design Pencil (contrato.pen) — tema dark. */
+  --sc-bg: #0b0d12;
+  --sc-card: #141821;
+  --sc-border: #232936;
+  --sc-text: #e8ebf0;
+  --sc-muted: #8b94a7;
+
+  --sc-primary: #7c5cff;
+  --sc-primary-foreground: #ffffff;
+
+  --sc-ok: #2ed47a;
+  --sc-ok-foreground: #06231a;
+
+  --sc-alerta: #ff4d5e;
+  --sc-alerta-foreground: #ffffff;
+
+  --sc-warning: #ffb020;
+
+  --sc-neutro: #232936;
+  --sc-neutro-foreground: #8b94a7;
+
+  --sc-ring: var(--sc-primary);
+
+  /* Bridged into Tailwind's theme below; kept for template compatibility. */
+  --background: var(--sc-bg);
+  --foreground: var(--sc-text);
+}
+
+:root.light {
+  --sc-bg: #f2f3f0;
+  --sc-card: #ffffff;
+  --sc-border: #cbccc9;
+  --sc-text: #111111;
+  --sc-muted: #666666;
+
+  --sc-primary: #6d4aff;
+  --sc-primary-foreground: #ffffff;
+
+  --sc-ok: #1a9e5c;
+  --sc-ok-foreground: #ffffff;
+
+  --sc-alerta: #e5384a;
+  --sc-alerta-foreground: #ffffff;
+
+  --sc-warning: #b26b00;
+
+  --sc-neutro: #e5e8ee;
+  --sc-neutro-foreground: #333a46;
+
+  --background: var(--sc-bg);
+  --foreground: var(--sc-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--sc-bg);
+  color: var(--sc-text);
+  font-family: var(--font-geist-sans), Inter, system-ui, sans-serif;
+}

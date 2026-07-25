@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+.vercel/
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+coverage/
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+NUL
+**/NUL
