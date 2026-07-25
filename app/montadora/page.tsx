@@ -64,12 +64,15 @@ export default function MontadoraPage() {
         name: name.trim() || undefined,
       });
 
-      // registra o índice vinCommit → asset para a verificação (local; na Vercel não persiste).
-      void fetch('/api/veiculos', {
+      // Registra o índice vinCommit → asset para a verificação. Aguardado (não fire-and-forget):
+      // garante o índice gravado ANTES de liberar o link "Verificar" — senão a página abre vazia,
+      // pois a resolução vinCommit→asset ainda não existe (bug do "cliquei em verificar e deu vazio").
+      const idx = await fetch('/api/veiculos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vinCommit, asset, nome: name.trim() || undefined }),
-      }).catch(() => {});
+      });
+      if (!idx.ok) throw new Error('Veículo emitido on-chain, mas falha ao registrar o índice de verificação.');
 
       setResult({ asset, sig, vinCommit });
       setStatus('success');
