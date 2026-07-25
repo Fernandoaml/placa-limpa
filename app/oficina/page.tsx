@@ -80,14 +80,17 @@ export default function OficinaPage() {
       });
 
       // Guarda o ciphertext off-chain sob o MESMO hash do memo (na chain só foi o hash) + 5 shares 3-de-5.
+      // Aguardado (não fire-and-forget): garante que o dado chega no /cofre antes de sinalizar sucesso —
+      // senão o evento aparece na timeline (lê a chain) mas some do cofre (lê o banco).
       const K = randomKey();
       const shares = (await splitKey(K)).map(toHex);
       const cipher = await encrypt(payload, K);
-      void fetch('/api/dados', {
+      const resp = await fetch('/api/dados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hash, asset: asset.trim(), ct: cipher.ct, iv: cipher.iv, shares }),
-      }).catch(() => {});
+      });
+      if (!resp.ok) throw new Error('Evento gravado on-chain, mas falha ao salvar o dado cifrado (cofre).');
 
       setSig(txSig);
       setStatus('success');

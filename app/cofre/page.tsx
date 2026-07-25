@@ -1,13 +1,14 @@
 'use client';
 
 // Cofre 3-de-5 — abre um dado sensível REAL (registrado por um evento on-chain).
-// Fluxo: escolhe o registro → mostra as 5 shares Shamir → cola 3 → reconstrói a chave AES → decifra.
+// Fluxo: (1) escolhe o veículo → (2) vê os registros cifrados dele → (3) abre um hash:
+// mostra as 5 shares Shamir → cola 3 → reconstrói a chave AES → decifra e lê o que foi escrito.
 // Confere que sha256(dado) == hash do memo on-chain. "Destruir a chave" = crypto-shredding (LGPD art. 18).
 //
 // ⚠️ Demo: as 5 shares aparecem juntas aqui só para demonstrar o mecanismo. Em produção elas ficam
 // distribuídas entre 5 custodiantes (emissor, DPO, proprietário, seguradora, custódia).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { combineKey, decrypt, fromHex, sha256Hex } from '@/lib/crypto';
@@ -22,12 +23,20 @@ interface DadoFull extends DadoRow {
   iv: string;
   shares: string[];
 }
+interface VeiculoRow {
+  asset: string;
+  nome: string;
+}
 
 const CUSTODIANTES = ['Emissor / Montadora', 'DPO da plataforma', 'Proprietário', 'Seguradora', 'Custódia / Escrow'];
 
+const data = (ms: number) =>
+  new Date(ms).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
 export default function CofrePage() {
   const [dados, setDados] = useState<DadoRow[]>([]);
-  const [nomes, setNomes] = useState<Record<string, string>>({});
+  const [veiculos, setVeiculos] = useState<VeiculoRow[]>([]);
+  const [assetSel, setAssetSel] = useState<string | null>(null);
   const [sel, setSel] = useState<DadoFull | null>(null);
   const [entradas, setEntradas] = useState(['', '', '']);
   const [aberto, setAberto] = useState<{ texto: string; confere: boolean } | null>(null);
@@ -39,18 +48,34 @@ export default function CofrePage() {
       fetch('/api/dados').then((r) => r.json()),
       fetch('/api/veiculos').then((r) => r.json()),
     ])
-      .then(([d, v]: [{ dados?: DadoRow[] }, { veiculos?: { asset: string; nome: string }[] }]) => {
+      .then(([d, v]: [{ dados?: DadoRow[] }, { veiculos?: VeiculoRow[] }]) => {
         setDados(d.dados ?? []);
-        const map: Record<string, string> = {};
-        (v.veiculos ?? []).forEach((x) => {
-          map[x.asset] = x.nome;
-        });
-        setNomes(map);
+        setVeiculos((v.veiculos ?? []).map((x) => ({ asset: x.asset, nome: x.nome })));
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => carregar(), [carregar]);
+
+  const nomes = useMemo(() => Object.fromEntries(veiculos.map((v) => [v.asset, v.nome])), [veiculos]);
+  const contagem = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const d of dados) m[d.asset] = (m[d.asset] ?? 0) + 1;
+    return m;
+  }, [dados]);
+  const registros = useMemo(
+    () => (assetSel ? dados.filter((d) => d.asset === assetSel) : []),
+    [dados, assetSel],
+  );
+
+  function escolherVeiculo(asset: string) {
+    setAssetSel(asset);
+    setSel(null);
+    setAberto(null);
+    setErro(null);
+    setStatus(null);
+    setEntradas(['', '', '']);
+  }
 
   async function escolher(hash: string) {
     setErro(null);
@@ -82,6 +107,7 @@ export default function CofrePage() {
 
   async function destruir() {
     if (!sel) return;
+    if (!confirm('Destruir a chave deste registro? É IRREVERSÍVEL — o dado cifrado some para sempre (sobra só o hash na chain).')) return;
     await fetch(`/api/dados?hash=${sel.hash}`, { method: 'DELETE' });
     setStatus('🔥 Ciphertext e shares destruídos. Sobra o hash imutável na chain — que não reidentifica ninguém (LGPD art. 18).');
     setSel(null);
@@ -89,7 +115,6 @@ export default function CofrePage() {
     carregar();
   }
 
-  const label = (d: DadoRow) => `${nomes[d.asset] ?? d.asset.slice(0, 10)} · ${d.hash.slice(0, 12)}…`;
   const campos = aberto ? aberto.texto.split('|') : [];
 
   return (
@@ -103,32 +128,64 @@ export default function CofrePage() {
         Demo: as 5 shares aparecem juntas aqui só para você experimentar. Em produção, ficam com 5 custodiantes distintos.
       </p>
 
-      {/* seletor de registros reais */}
+      {/* passo 1 — escolher o veículo */}
       <section className="mt-6">
-        <h2 className="text-sm font-medium text-[var(--sc-muted)]">Registros cifrados (de eventos on-chain)</h2>
+        <h2 className="text-sm font-medium text-[var(--sc-muted)]">1 · Escolha o veículo</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {dados.map((d) => (
+          {veiculos.map((v) => (
             <button
-              key={d.hash}
-              onClick={() => void escolher(d.hash)}
-              className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                sel?.hash === d.hash
+              key={v.asset}
+              onClick={() => escolherVeiculo(v.asset)}
+              className={`rounded-lg border px-3 py-2.5 text-left text-sm transition-colors ${
+                assetSel === v.asset
                   ? 'border-[var(--sc-primary)] bg-[var(--sc-primary)]/10'
                   : 'border-[var(--sc-border)] bg-[var(--sc-card)] hover:border-[var(--sc-primary)]'
               }`}
             >
-              <span className="block truncate text-[var(--sc-text)]">{nomes[d.asset] ?? 'Veículo'}</span>
-              <span className="block truncate font-mono text-xs text-[var(--sc-muted)]">{label(d)}</span>
+              <span className="block truncate text-[var(--sc-text)]">{v.nome || 'Veículo'}</span>
+              <span className="block text-xs text-[var(--sc-muted)]">
+                {contagem[v.asset] ?? 0} {(contagem[v.asset] ?? 0) === 1 ? 'registro cifrado' : 'registros cifrados'}
+              </span>
+              <span className="block truncate font-mono text-xs text-[var(--sc-muted)]" title={v.asset}>
+                {v.asset.slice(0, 16)}…
+              </span>
             </button>
           ))}
-          {dados.length === 0 && <p className="text-sm text-[var(--sc-muted)]">Nenhum registro cifrado.</p>}
+          {veiculos.length === 0 && <p className="text-sm text-[var(--sc-muted)]">Nenhum veículo registrado.</p>}
         </div>
       </section>
 
+      {/* passo 2 — registros do veículo escolhido */}
+      {assetSel && (
+        <section className="mt-6">
+          <h2 className="text-sm font-medium text-[var(--sc-muted)]">
+            2 · Registros de <span className="text-[var(--sc-text)]">{nomes[assetSel] ?? 'veículo'}</span>
+          </h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {registros.map((d) => (
+              <button
+                key={d.hash}
+                onClick={() => void escolher(d.hash)}
+                className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  sel?.hash === d.hash
+                    ? 'border-[var(--sc-primary)] bg-[var(--sc-primary)]/10'
+                    : 'border-[var(--sc-border)] bg-[var(--sc-card)] hover:border-[var(--sc-primary)]'
+                }`}
+              >
+                <span className="block font-mono text-xs text-[var(--sc-text)]">{d.hash.slice(0, 18)}…</span>
+                <span className="block text-xs text-[var(--sc-muted)]">{data(d.criado_em)}</span>
+              </button>
+            ))}
+            {registros.length === 0 && <p className="text-sm text-[var(--sc-muted)]">Nenhum registro cifrado para este veículo.</p>}
+          </div>
+        </section>
+      )}
+
+      {/* passo 3 — abrir o hash (ler o dado) */}
       {sel && (
         <>
           <section className="mt-6">
-            <h2 className="text-sm font-medium text-[var(--sc-muted)]">As 5 shares (copie 3 quaisquer)</h2>
+            <h2 className="text-sm font-medium text-[var(--sc-muted)]">3 · As 5 shares (copie 3 quaisquer)</h2>
             <div className="mt-3 grid gap-2">
               {sel.shares.map((s, i) => (
                 <div key={i} className="rounded-lg border border-[var(--sc-border)] bg-[var(--sc-card)] p-3">
