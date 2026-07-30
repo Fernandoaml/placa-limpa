@@ -94,6 +94,10 @@ Import direto deste repositório (o app está na **raiz**). Variáveis: `NEXT_PU
 `NEXT_PUBLIC_COLLECTION` (vazio) e **`NEXT_PUBLIC_MOCK=0`**. Para **escrita persistente** em produção,
 defina `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (Turso libsql cloud) — sem eles, o app cai no `.db` local.
 
+> ⚠️ **`SOLANA_RPC`** (server-only): a timeline usa `getSignaturesForAddress`, que o **devnet público
+> não** responde. Defina `SOLANA_RPC` com um RPC que indexe histórico (ex.: QuickNode) — sem o prefixo
+> `NEXT_PUBLIC_`, a chave fica só no servidor. Sem ela, a verificação abre **sem eventos**.
+
 ## Endereços da devnet
 
 Carteira montadora (mint authority): `AENk2DB1xKpi3Urs8UJgqk5BWLA25Xqruz8eJMF9VFJP`.
