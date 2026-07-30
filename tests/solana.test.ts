@@ -6,6 +6,7 @@ afterEach(() => {
   delete process.env.NEXT_PUBLIC_RPC;
   delete process.env.NEXT_PUBLIC_COLLECTION;
   delete process.env.NEXT_PUBLIC_MOCK;
+  delete process.env.SOLANA_RPC;
 });
 
 describe('solana — env padrão (fallbacks)', () => {
@@ -41,5 +42,13 @@ describe('solana — env custom', () => {
     expect(s.RPC_URL).toBe('https://my-rpc.example/');
     expect(s.COLLECTION).toBe('COLLxxx');
     expect(s.MOCK).toBe(true);
+  });
+
+  it('SOLANA_RPC (server-only) tem prioridade na leitura', async () => {
+    vi.resetModules();
+    process.env.SOLANA_RPC = 'https://read-rpc.example/';
+    const s = await import('@/lib/solana');
+    expect(s.READ_RPC_URL).toBe('https://read-rpc.example/');
+    expect(s.getConnection().rpcEndpoint).toContain('read-rpc.example');
   });
 });
